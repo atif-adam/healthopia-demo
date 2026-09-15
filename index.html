@@ -2473,6 +2473,29 @@ legend {
 @media(max-width:760px){.breakfast-scene{padding:14px}.scene-factors{grid-template-columns:1fr}.scene-core,.scene-question,.scene-heading{flex-wrap:wrap}.scene-core>.btn{margin-left:0}.scene-time{margin-bottom:8px}}
 .activity-focused-world .city{height:245px}.breakfast-map-label text{font-size:18px}.activity-focused-world .city-caption{display:none}
 @media(max-width:760px){.activity-focused-world .city{height:225px}}
+.active-planning{margin:0 24px 32px;background:#fff;border:1px solid #d5e1d8;border-radius:16px;padding:24px;scroll-margin-top:85px}
+.planning-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.planning-heading h2{font-size:1.4rem;margin:7px 0}.planning-heading p{color:#61796c;font-size:.86rem;margin:8px 0 20px}.planning-anchor{background:#f2f6ec;padding:10px 13px;font-size:.77rem;border-radius:8px;margin-bottom:18px}
+.planning-columns{display:grid;grid-template-columns:1fr 1fr;gap:28px}.planning-columns section>h3{font-size:1rem;display:flex;gap:10px;align-items:center}.planning-columns section>h3>span{font-size:.75rem;background:#e8efe5;padding:4px 8px;border-radius:15px}.agreed-column{background:#f5f8ef;border-radius:12px;padding:18px}.discussion-column{padding:18px 0}.next-step-choices{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 5px}.proposal-selector{display:flex;flex-direction:column;gap:5px;margin:18px 0}.proposal-selector button{border:1px solid #dde5d9;background:#fafbf7;border-radius:7px;text-align:left;padding:10px 12px;font-size:.8rem;color:#496557;cursor:pointer}.proposal-selector button[aria-pressed=true]{border-color:#628a74;background:#eaf2e3;font-weight:600}
+.active-planning .plan-item{padding:18px;border:1px solid #d7e3d2;border-radius:10px;background:white;margin:12px 0}.active-planning .plan-item h3{font-size:1.04rem;margin:14px 0 9px}.plan-instruction{font-size:.83rem;line-height:1.6}.plan-review-question{padding:12px;background:#f5f7ef;border-radius:8px;margin:14px 0}.plan-review-question small{font-size:.65rem;text-transform:uppercase;color:#6d806b}.plan-review-question p{font-size:.8rem;margin:6px 0 0}.plan-background{margin:12px 0;font-size:.75rem}.plan-background summary{cursor:pointer;color:#6b7b6b}.agreement-confirmed{color:#326946;font-size:.76rem;padding:8px 0}.planning-empty{padding:22px 10px;font-size:.83rem;color:#758574;line-height:1.6}.set-aside-list{margin-top:18px;font-size:.78rem}.set-aside-list summary{cursor:pointer}.planning-finish{border-top:1px solid #dde6d7;margin-top:20px;padding-top:20px;display:flex;justify-content:space-between;gap:20px;align-items:center}.planning-finish strong,.planning-finish small{display:block}.planning-finish small{margin-top:6px;font-size:.7rem;color:#76836f}.plan-history{margin-top:18px;font-size:.78rem}.decision-form-intro{padding:14px;background:#f2f6ec;border-radius:9px;margin-bottom:18px}.decision-form-intro p{font-size:.8rem;margin:7px 0}.decision-form-intro small{font-size:.7rem;color:#667d68}
+@media(max-width:900px){.planning-columns{grid-template-columns:1fr}.planning-finish{flex-wrap:wrap}.active-planning{margin:0 14px 24px;padding:16px}.planning-heading{flex-wrap:wrap}}
+.agreed-column{align-self:start}.planning-columns .tag.agreed{text-transform:capitalize}
+
+/* Team responsibilities complement the patient plan without changing the city. */
+.team-task-section{margin-top:26px;padding-top:24px;border-top:1px solid #dce3df}
+.team-task-section>.meta{max-width:760px;margin:10px 0 18px}
+.team-task-card{padding:18px;margin:12px 0;border:1px solid #dce3df;border-radius:14px;background:#f7f9f8;overflow-wrap:anywhere}
+.team-task-card h3{margin:12px 0 7px}
+.team-task-card>p{margin:8px 0;font-size:13px;line-height:1.55}
+.team-task-ownership{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:14px 0}
+.team-task-ownership small,.team-task-ownership strong{display:block;font-size:12px;line-height:1.5}
+.team-task-ownership small{color:#62716c;font-weight:400}
+.team-task-history{padding-left:22px;margin:20px 0}
+.team-task-history li{padding:6px 0 12px;border-bottom:1px solid #e3e8e5;font-size:13px}
+.team-task-history p{margin:5px 0;line-height:1.6}
+.team-queue-group{margin:16px 0}
+.team-queue-group summary{cursor:pointer;font-weight:600}
+.planning-anchor small{display:block;margin-top:4px}
+@media(max-width:650px){.team-task-ownership{grid-template-columns:1fr;gap:9px}.team-task-section .row{align-items:flex-start}.team-task-section .btn{white-space:normal}.team-task-card{padding:13px}}
 
 </style>
   <!-- Embedded DM Sans font license:
@@ -3953,6 +3976,7 @@ window.CITY_ART =
     notes: "",
     sharedEvidence: [],
     urgentReview: null,
+    teamTasks: [],
     dispositions: {},
     snapshot: null,
     receipt: false,
@@ -4011,6 +4035,8 @@ window.CITY_ART =
   function priority(id) {
     const s = get(id);
     if (id === "maya" && !s.urgentReview) return "urgent";
+    if (teamTasks(id).some(t=>t.priority==="Urgent"&&!["reviewed","cancelled"].includes(t.status))) return "urgent";
+    if (pendingWork(id)) return "due";
     if (id === "maya" && !s.snapshot && !s.dispositions.cognition) return "due";
     if (s.snapshot && !s.receipt) return "due";
     if (
@@ -4126,7 +4152,7 @@ window.CITY_ART =
     const a = s.actions.find((x) => x.id === aid);
     if (
       !a ||
-      a.status === "completed" ||
+      a.status === "completed" || a.id === "maya-review" ||
       !["proposed", "agreed", "deferred", "declined"].includes(status)
     )
       return;
@@ -4141,7 +4167,7 @@ window.CITY_ART =
       );
     if (!confirmed || !reviewer?.trim())
       throw Error("Confirm the review and enter the responsible clinician.");
-    const actions = s.actions.filter((a) => a.status === "agreed");
+    const actions = s.actions.filter((a) => a.status === "agreed" && a.id !== "maya-review");
     if (!actions.length)
       throw Error("Agree at least one action before sending.");
     s.version += 1;
@@ -4188,7 +4214,7 @@ window.CITY_ART =
     s.snapshot = null;
     s.receipt = false;
     s.response = false;
-    s.dispositions = {};
+    s.dispositions = Object.fromEntries(Object.entries(s.dispositions).filter(([,d])=>["Further assessment needed","Adjust the plan"].includes(d.decision)));
     s.day = 0;
     s.actions = s.actions.map((a) => ({
       ...a,
@@ -4260,6 +4286,37 @@ window.CITY_ART =
           : "Compare returned observations with the agreed review question and daily function. The demonstration does not establish that the plan caused a change.",
     };
   }
+  const teamLabels = {requested:'Awaiting acceptance', accepted:'Accepted · in progress', scheduled:'Consultation scheduled', blocked:'Blocked · follow-up needed', completed:'Outcome awaiting review', reviewed:'Outcome reviewed', cancelled:'Cancelled with reason'};
+  function teamTasks(id) { return get(id).teamTasks || (get(id).teamTasks=[]); }
+  function pendingWork(id) {
+    return Object.values(get(id).dispositions).some(d=>['Further assessment needed','Adjust the plan'].includes(d.decision)) || teamTasks(id).some(t=>!['reviewed','cancelled'].includes(t.status));
+  }
+  function createTeamTask(id, input) {
+    const required=['title','reason','owner','recipient','kind','concern'];
+    for(const key of required) if(typeof input[key]!=='string'||!input[key].trim()) throw Error('Complete the task, clinical question, owner and recipient.');
+    if(!['Callback','Handoff','Escalation','Referral'].includes(input.kind)||!current(id,input.concern)) throw Error('Choose a valid task type and concern.');
+    if(input.evidence && !D.patients[id].evidence.some(e=>e.id===input.evidence)) throw Error('Choose evidence belonging to this patient.');
+    const day=Number(input.day), dueDay=Number(input.dueDay);
+    if(!Number.isInteger(day)||day<0||day>365||!Number.isInteger(dueDay)||dueDay<day||dueDay>365) throw Error('Due day must be on or after the task day (0–365).');
+    const task={...copy(input),day,dueDay,id:'team-'+Date.now()+'-'+Math.random().toString(36).slice(2,7), status:'requested',history:[{status:'requested',day,actor:input.owner,note:input.reason,at:new Date().toISOString()}]};
+    teamTasks(id).push(task); get(id).day=Math.max(get(id).day,day); persist(); return task;
+  }
+  function updateTeamTask(id, tid, input) {
+    const t=teamTasks(id).find(t=>t.id===tid);
+    if(!t) throw Error('Task not found for this patient.');
+    const allowed={requested:['accepted','blocked','cancelled','contact'],accepted:['scheduled','completed','blocked','cancelled','contact'],scheduled:['completed','blocked','cancelled','contact'],blocked:['accepted','cancelled','contact'],completed:['reviewed','blocked'],reviewed:[],cancelled:[]};
+    if(input.status==='scheduled'&&t.kind!=='Referral') throw Error('Scheduling status applies to referrals.');
+    if(!allowed[t.status].includes(input.status)) throw Error('Complete the preceding task step first.');
+    if(!input.actor?.trim()||!input.note?.trim()) throw Error('Record who acted and the outcome or next step.');
+    const day=Number(input.day);
+    if(!Number.isInteger(day)||day<t.history.at(-1).day||day>365) throw Error('Event day must follow the previous event (through day 365).');
+    if(input.status==='contact'&&!input.method?.trim()) throw Error('Record the contact method.');
+    t.history.push({...copy(input),day,at:new Date().toISOString()});
+    if(input.status!=='contact') t.status=input.status;
+    if(input.status==='accepted') t.acceptedBy=input.actor;
+    get(id).day=Math.max(get(id).day,day);
+    persist(); return t;
+  }
   function followupReviewed(id) {
     const st = get(id);
     return (
@@ -4289,6 +4346,7 @@ window.CITY_ART =
     reset,
     responseSummary,
     followupReviewed,
+    pendingWork, teamTasks, teamLabels, createTeamTask, updateTeamTask,
   };
 })();
 
@@ -4441,7 +4499,7 @@ window.CITY_ART =
         .map((id) => {
           const a = D.patients[id],
             st = M.get(id);
-          return `<article class="patient-card"><div class="card-head"><div class="row card-name"><span class="avatar ${id}">${a.initials}</span><div><h2>${a.name}</h2><small>${a.age} years · ${a.role}</small></div></div>${badge(id)}</div><div class="card-world">${miniature(id)}<span class="mini-flag">${esc(a.tag)}</span></div><div class="card-body"><h3>${esc(M.followupReviewed(id) ? "Follow-up reviewed" : st.response ? "Response ready for clinical review" : id === "maya" && st.urgentReview ? "Immediate review documented" : a.next)}</h3><p>${esc(a.reason)}</p><small class="eyebrow" style="margin-bottom:-8px">Visit snapshot</small><div class="card-metrics">${a.concerns
+          return `<article class="patient-card"><div class="card-head"><div class="row card-name"><span class="avatar ${id}">${a.initials}</span><div><h2>${a.name}</h2><small>${a.age} years · ${a.role}</small></div></div>${badge(id)}</div><div class="card-world">${miniature(id)}<span class="mini-flag">${esc(a.tag)}</span></div><div class="card-body"><h3>${esc(M.pendingWork(id) ? "Further action pending" : M.followupReviewed(id) ? "Follow-up reviewed" : st.response ? "Response ready for clinical review" : id === "maya" && st.urgentReview ? "Immediate review documented" : a.next)}</h3><p>${esc(a.reason)}</p><small class="eyebrow" style="margin-bottom:-8px">Visit snapshot</small><div class="card-metrics">${a.concerns
             .slice(0, 2)
             .map(
               (x) =>
@@ -4461,11 +4519,11 @@ window.CITY_ART =
       .map((id) => {
         const a = D.patients[id],
           st = M.get(id);
-        return `<article class="inbox-row"><div class="person">${a.name}<span class="task-state">${id === "maya" ? "Care partner · today" : id === "elena" ? "Patient · yesterday" : "Patient · yesterday"}</span></div><div><h3>${M.followupReviewed(id) ? "Follow-up reviewed" : st.response ? "Follow-up response returned" : id === "maya" ? "“She seems different this morning.”" : id === "elena" ? "“I lost my place making breakfast.”" : "“The late reminders don’t work.”"}</h3><p>${M.followupReviewed(id) ? "Decisions and next contacts are recorded for the agreed concerns." : st.response ? "Review the response against the agreed plan." : id === "maya" && st.urgentReview ? "Immediate review documented. The cognitive episode remains open." : a.reason}</p>${badge(id)}</div><div class="task-owner"><small>Assigned to</small><p>${esc(st.owner.split(" · ")[0])}</p>${btn("Assign", "assign", "quiet small", `data-patient="${id}"`)}</div><button class="btn small" data-open-task="${id}">Review ${icon("arrow")}</button></article>`;
+        return `<article class="inbox-row"><div class="person">${a.name}<span class="task-state">${id === "maya" ? "Care partner · today" : id === "elena" ? "Patient · yesterday" : "Patient · yesterday"}</span></div><div><h3>${M.pendingWork(id) ? "Further action pending" : M.followupReviewed(id) ? "Follow-up reviewed" : st.response ? "Follow-up response returned" : id === "maya" ? "“She seems different this morning.”" : id === "elena" ? "“I lost my place making breakfast.”" : "“The late reminders don’t work.”"}</h3><p>${M.pendingWork(id) ? "Review the outstanding decision or team task; documenting a review does not complete the work." : M.followupReviewed(id) ? "Decisions and next contacts are recorded for the agreed concerns." : st.response ? "Review the response against the agreed plan." : id === "maya" && st.urgentReview ? "Immediate review documented. The cognitive episode remains open." : a.reason}</p>${badge(id)}</div><div class="task-owner"><small>Assigned to</small><p>${esc(st.owner.split(" · ")[0])}</p>${btn("Assign", "assign", "quiet small", `data-patient="${id}"`)}</div><button class="btn small" data-open-task="${id}">Review ${icon("arrow")}</button></article>`;
       })
       .join(
         "",
-      )}</section><footer class="page-foot">Simulated patients, records and delivery. Drafts stay in this browser tab. Review priority describes work to do; it is not a health diagnosis.</footer></main>`;
+      )}</section><section class="inbox" aria-label="Team task queue"><h2>Team tasks requiring follow-through</h2>${list.map(id=>M.teamTasks(id).length?`<details class="team-queue-group" ${M.teamTasks(id).some(t=>!['reviewed','cancelled'].includes(t.status))?'open':''}><summary>${esc(D.patients[id].name)} · ${M.teamTasks(id).filter(t=>!['reviewed','cancelled'].includes(t.status)).length} open · task history</summary>${teamTaskCards(id,true)}</details>`:'').join('')||'<p class="meta">Create a callback, handoff, escalation or referral from a patient’s active planning section.</p>'}</section><footer class="page-foot">Simulated patients, records and delivery. Drafts stay in this browser tab. Review priority describes work to do; it is not a health diagnosis.</footer></main>`;
   }
   function world() {
     const st = s(),
@@ -4567,7 +4625,7 @@ window.CITY_ART =
     return `<span class="eyebrow">${esc(c().title)}</span><h2>${e?'Selected event & evidence':'Evidence & sources'}</h2>${chosen[0]?evidenceCard(chosen[0]):''}${chosen.length>1?`<details class="supporting-records"><summary>${chosen.length-1} supporting source record${chosen.length>2?'s':''}</summary>${chosen.slice(1).map(evidenceCard).join('')}</details>`:''}${related.length?'<h3 class="related-heading">Related to the active concern</h3>':''}${related.map(evidenceCard).join('')}${!e&&!related.length?'<div class="notice">No dated evidence is available in this context.</div>':''}<div class="drawer-bottom">${btn('Clinical record','records','clinical-only')}${btn('Add assessment','add-assessment','primary')}</div>`;
   }
   function eventThread() {
-    const st = s(), start = -(st.journeyWindow || 28), end = Math.max(14, p().record.responseDay), span = end-start;
+    const st = s(), start = -(st.journeyWindow || 28), end = Math.max(14, p().record.responseDay,...M.teamTasks(p().id).map(t=>Math.max(t.dueDay,...t.history.map(h=>h.day)))), span = end-start;
     const x = day => (day-start)/span*100;
     const lanes = [
       {id:'function', name:'Cognition & function', color:'#696aa5', items:[]},
@@ -4593,6 +4651,12 @@ window.CITY_ART =
     const agreed = st.actions.filter(a=>a.status==='agreed');
     if(agreed.length) add('care',{day:0,label:st.snapshot?'Signed plan':'Agreed plan · draft',attr:'data-action="plan"'});
     for (const a of agreed) add(a.type==='Assessment'?'tests':'care',{day:a.reviewDay,label:(st.response && a.reviewDay<=p().record.responseDay ? 'Review response: ' : 'Scheduled review: ')+a.title,attr:st.response?'data-action="world-next"':`data-plan-item="${a.id}"`,future:!(st.response && a.reviewDay<=p().record.responseDay)});
+    for(const t of M.teamTasks(p().id)) {
+      const visible=t.history.filter(h=>h.day<=Math.max(0,st.day));
+      const last=visible.at(-1);
+      if(last) add('care',{day:last.day,label:route.mode==='shared'?'Team follow-up · details with clinician':t.title+' · '+(last.status==='contact'?'Contact update':M.teamLabels[last.status]),attr:`data-team-task="${t.id}" data-team-patient="${p().id}"`});
+      if(!['reviewed','cancelled'].includes(t.status)) add('care',{day:t.dueDay,label:'Team task due: '+(route.mode==='shared'?'clinical follow-up':t.title),future:true,attr:`data-team-task="${t.id}" data-team-patient="${p().id}"`});
+    }
     const selected = selectedJourney();
     const ticks = [...new Set([start, -14, -7, 0, end])].filter(d=>d>=start).sort((a,b)=>a-b);
     const rows=lanes.map(l=>{
@@ -4713,20 +4777,39 @@ window.CITY_ART =
       .join("")}</div></details>`;
   }
   function actionCard(a) {
-    const st = s(),
-      plot = st.plots.find((x) => x.id === a.plotId),
-      locked = !!st.snapshot;
-    return `<article class="plan-item" id="action-${a.id}" ${st.focusAction === a.id ? 'style="background:#f0f7f3;margin:0 -10px;padding:15px 10px;border-radius:9px"' : ""}><div class="row between"><button class="place-link" data-plan-place="${a.place}">${icon("pin")}${esc(plot?.name || a.place)}</button><span class="tag ${a.status}">${a.status === "agreed" ? "Agreed" : a.status[0].toUpperCase() + a.status.slice(1)}</span></div><h3>${esc(a.patientTitle || a.title)}</h3><div class="row wrap">${a.concerns.map((id) => `<button class="tag" data-concern="${id}">${esc(M.current(p().id, id)?.title || id)}</button>`).join("")}</div><details><summary>Instructions & purpose</summary><p>${esc(a.patientText)}</p><div class="purpose"><small>At follow-up, ask</small><p>${esc(a.reviewQuestion)}</p></div>${a.assessmentName ? `<small>${esc(a.assessmentName)} · ${esc(a.respondent)} · ${esc(a.version || "Version to verify")}</small>` : ""}${a.evidence ? `<button class="btn quiet small" data-action="evidence" data-evidence="${a.evidence}">Supporting evidence</button>` : ""}</details><div class="tiny-meta">${esc(a.owner)} · ${a.id === "maya-review" ? "Review at visit" : "Review day +" + a.reviewDay}${a.minutes ? " · " + a.minutes + " min/activity" : ""}</div>${a.status === "completed" ? "<small>Clinical review documented at the visit.</small>" : locked ? `<small>${!st.snapshot.actions.some((x) => x.id === a.id) ? "Set aside · excluded from signed plan" : st.receipt ? "Received in app demonstration" : "Signed · awaiting simulated receipt"}</small>` : `<div class="action-controls"><button data-action-status="agreed" data-item="${a.id}" class="${a.status === "agreed" ? "active" : ""}">${icon("check")} Agree</button><button data-action-status="deferred" data-item="${a.id}" class="${a.status === "deferred" ? "active" : ""}">Defer</button><button data-action-status="declined" data-item="${a.id}" class="${a.status === "declined" ? "active" : ""}">Decline</button><button data-edit-item="${a.id}" aria-label="Edit ${esc(a.title)}">Edit</button><button data-remove-item="${a.id}" aria-label="Remove ${esc(a.title)}">Remove</button></div>`}</article>`;
+    const st=s(), locked=!!st.snapshot, plot=st.plots.find(x=>x.id===a.plotId);
+    if(a.id==='maya-review') return `<article class="plan-item"><span class="tag">Clinical team responsibility</span><h3>${esc(a.title)}</h3><p>${esc(a.patientText)}</p>${btn('Review current report','urgent','danger small')}<button class="btn small" data-new-team="Escalation">Record team escalation</button><p class="meta">Current assessment is documented separately from patient agreement and app activities.</p></article>`;
+    return `<article class="plan-item ${st.focusAction===a.id?'focused':''}" id="action-${a.id}"><div class="row between"><span class="tag ${a.status}">${a.status==='proposed'?'For discussion':esc(a.status)}</span><button class="place-link" data-plan-place="${a.place}">${icon('pin')}${esc(plot?.name||a.place)}</button></div><h3>${esc(a.patientTitle||a.title)}</h3><p class="plan-instruction">${esc(a.patientText)}</p><div class="plan-review-question"><small>How we’ll review it</small><p>${esc(a.reviewQuestion)}</p></div><div class="tiny-meta"><strong>${esc(a.owner)}</strong> · ${a.id==='maya-review'?'Review at visit':'Review day +'+a.reviewDay}</div><details class="plan-background"><summary>Concern and supporting details</summary><p>${a.concerns.map(id=>esc(M.current(p().id,id)?.title||id)).join(' · ')}</p>${a.assessmentName?`<small>${esc(a.assessmentName)} · ${esc(a.respondent)} · ${esc(a.version||'Version to verify')}</small>`:''}${a.evidence?btn('Supporting evidence','evidence','small',`data-evidence="${a.evidence}"`):''}</details>${a.status==='completed'?'<small>Clinical review documented.</small>':locked?`<small>${st.snapshot.actions.some(x=>x.id===a.id)?(st.receipt?'Received in app demonstration':'Signed · receipt pending'):'Excluded from signed plan'}</small>`:`<div class="action-controls">${a.status==='agreed'?'<span class="agreement-confirmed">✓ Agreed with patient</span>':`<button data-action-status="agreed" data-item="${a.id}">Agree with patient</button>`}<button data-edit-item="${a.id}" aria-label="Edit ${esc(a.title)}">Edit</button><button data-set-aside="${a.id}">Set aside</button></div>`}</article>`;
   }
-  function planPanel() {
-    const st = s(),
-      related = st.actions.filter((a) =>
-        a.concerns.some((x) => st.selected.includes(x)),
-      ),
-      other = st.actions.filter(
-        (a) => !a.concerns.some((x) => st.selected.includes(x)),
-      );
-    return `<span class="eyebrow">${st.snapshot ? "Signed version " + st.version : "Plan together"}</span><h2>${st.snapshot ? "Your agreed plan" : "A plan that fits daily life"}</h2><p class="meta">${esc(st.aim)}.</p><div class="plan-counts"><span>${st.actions.filter((a) => a.status === "agreed").length} agreed</span><span>${st.actions.filter((a) => a.status === "proposed").length} proposed</span>${st.actions.some((a) => a.status === "completed") ? "<span>Clinical review completed</span>" : ""}<span>${st.actions.filter((a) => a.status === "deferred" || a.status === "declined").length} set aside</span></div>${related.map(actionCard).join("") || '<div class="empty">No action is linked to this concern yet. Continuing the current plan is also a valid decision.</div>'}${other.length ? `<details style="margin:15px 0"><summary style="font-size:.85rem;cursor:pointer">Other concerns in this plan (${other.length})</summary>${other.map(actionCard).join("")}</details>` : ""}<div class="drawer-bottom">${st.snapshot ? btn(icon("edit") + " Start a revision", "revise", "primary") : btn(icon("plus") + " Activity or goal", "add-action", "primary")}${!st.snapshot ? btn("Add assessment", "add-assessment") : ""}${btn("Patient app preview", "app-preview", "quiet small")}${btn("Record a decision", "disposition", "quiet small")}</div>${st.history?.length ? `<details style="margin-top:15px"><summary class="meta">Previous plan versions (${st.history.length})</summary>${st.history.map((h) => `<div class="record-row"><b>Version ${h.snapshot.version}</b><p>${h.snapshot.actions.length} agreed actions · ${esc(h.snapshot.reviewer)}</p><small>${h.response ? "Response received" : h.receipt ? "App receipt recorded" : "Signed"}</small><button class="btn small" style="margin-top:8px" data-history-version="${h.snapshot.version}">Review version ${h.snapshot.version}</button></div>`).join("")}</details>` : ""}`;
+  function teamTaskCards(id, compact=false) {
+    const state=M.get(id), tasks=M.teamTasks(id), now=Math.max(0,state.day);
+    return tasks.map(t=>`<article class="team-task-card"><div class="row between wrap"><span class="tag">${esc(t.kind)}</span><span class="tag ${!['reviewed','cancelled'].includes(t.status)?'due':'routine'}">${esc(M.teamLabels[t.status])}</span></div><h3>${esc(t.title)}</h3><p>${esc(M.current(id,t.concern).title)} · ${esc(t.reason)}</p><div class="team-task-ownership"><span><small>Accountable for follow-up</small><strong>${esc(t.owner)}</strong></span><span><small>${t.acceptedBy?'Accepted by':'Requested recipient'}</small><strong>${esc(t.acceptedBy||t.recipient)}</strong></span><span><small>Clinician-set due date</small><strong>Day +${t.dueDay}${now>t.dueDay&&!['reviewed','cancelled'].includes(t.status)?' · overdue at this demo day':''}</strong></span></div>${t.history.length>1?`<p class="meta">Latest: ${esc(t.history.at(-1).note)}</p>`:''}<button class="btn small" data-team-task="${t.id}" data-team-patient="${id}">Review task & history</button></article>`).join('') || '<p class="meta">No team tasks requested yet. A task can be created without sending patient app instructions.</p>';
+  }
+  function teamTaskSection() {
+    return `<section class="team-task-section" aria-label="Clinical team tasks"><div class="row between wrap"><div><span class="eyebrow">Clinical team tasks</span><h3>Who takes the next step?</h3></div><div class="row wrap">${['Callback','Handoff','Escalation','Referral'].map(kind=>`<button class="btn small" data-new-team="${kind}">${kind}</button>`).join('')}</div></div><p class="meta">Requests, acceptance and outcomes stay linked to the clinical concern. These are simulated team records, separate from patient app activities.</p>${p().id==='maya'&&!s().urgentReview?actionCard(s().actions.find(a=>a.id==='maya-review')):''}${teamTaskCards(p().id)}</section>`;
+  }
+  function teamTaskForm(kind='Callback') {
+    const examples={elena:['Clarify the breakfast episodes','Clarify what interrupted the tasks, current function and the support Elena would find useful.','RN care coordinator'],maya:['Arrange review of the new disorientation','Establish the current condition and immediate disposition; retain the new report separately from prior cognitive testing.','Receiving clinician'],james:['Confirm a workable reminder time','Agree timing on shift days and days off; confirm whether the requested reminder change was applied.','Care coordinator']};
+    const e=examples[p().id], day=Math.max(0,s().day), source=selectedJourney()?.id||c().evidence[0]||'';
+    modal(kind+' · '+p().name,`<form id="teamTaskForm"><p class="notice">Fictional request only. No message, referral or order is sent. The accountable owner follows up until the outcome is reviewed.</p><input type="hidden" name="kind" value="${kind}"><div class="form-grid">${field('title','Task',kind==='Referral'?'Specialist opinion on '+c().title.toLowerCase():'Follow up: '+c().title.toLowerCase(),'text','required maxlength="150"')}<label class="field">Clinical concern<select name="concern">${p().concerns.map(x=>`<option value="${x.id}" ${x.id===s().active?'selected':''}>${esc(x.title)}</option>`).join('')}</select></label><div class="full">${area('reason',kind==='Referral'?'Clinical question for the receiving service':'Reason and requested action',c().question,'required maxlength="1800"')}</div>${field('owner','Accountable owner',s().owner.split(' · ')[0],'text','required maxlength="100"')}${field('recipient',kind==='Referral'?'Receiving specialty / service':'Receiving team member',kind==='Referral'?'':e[2],'text','required maxlength="100"')}<label class="field">Priority set by clinician<select name="priority"><option>Routine</option><option ${kind==='Escalation'?'selected':''}>Urgent</option></select></label>${field('day','Request day after visit',day,'number','required min="0" max="365"')}${field('dueDay','Due day after visit',day+(kind==='Escalation'?0:1),'number','required min="0" max="365"')}<label class="field">Supporting event<select name="evidence"><option value="">No source selected</option>${p().evidence.map(x=>`<option value="${x.id}" ${x.id===source?'selected':''}>${esc(x.title)}</option>`).join('')}</select></label></div><p class="meta">Demonstration dates are relative to the visit. Priority and deadlines are entered by the clinician, not computed clinical thresholds.</p><button class="btn primary" type="submit">Record demo request</button></form>`);
+  }
+  function teamTaskDetail(id,tid) {
+    const t=M.teamTasks(id).find(x=>x.id===tid); if(!t)return;
+    const choices={requested:[['accepted','Record acceptance'],['contact','Record contact attempt'],['blocked','Unable to proceed'],['cancelled','Cancel with reason']],accepted:[...(t.kind==='Referral'?[['scheduled','Record consultation scheduled']]:[]),['contact','Record contact update'],['completed',t.kind==='Referral'?'Record returned consultation report':'Record completed action'],['blocked','Unable to proceed'],['cancelled','Cancel with reason']],scheduled:[['contact','Record contact update'],['completed','Record returned consultation report'],['blocked','Referral cannot proceed'],['cancelled','Cancel with reason']],blocked:[['contact','Record contact attempt'],['accepted','Resume with accepted owner'],['cancelled','Cancel with reason']],completed:[['reviewed','Clinician reviewed outcome'],['blocked','More work needed']],reviewed:[],cancelled:[]}[t.status];
+    modal(t.title,`<div class="notice">${esc(M.teamLabels[t.status])} · ${esc(t.priority)} · due day +${t.dueDay}<p>Accountable owner: ${esc(t.owner)} · Recipient: ${esc(t.recipient)}</p><p>${esc(t.reason)}</p><small>Recording acceptance documents a simulated receiving-person acknowledgment. Task completion does not close the clinical concern.</small></div>${t.evidence?`<button class="btn small" data-team-source="${t.evidence}" data-team-patient="${id}" data-team-concern="${t.concern}">Review supporting event</button>`:''}<ol class="team-task-history">${t.history.map(h=>`<li><strong>Day +${h.day} · ${esc(h.status==='contact'?'Contact / scheduling update':M.teamLabels[h.status])}</strong><p>${esc(h.actor)}${h.method?' · '+esc(h.method):''} — ${esc(h.note)}</p></li>`).join('')}</ol>${choices.length?`<form id="teamTaskUpdate" data-patient="${id}" data-task="${tid}"><div class="form-grid"><label class="field">Next task event<select name="status">${choices.map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label>${field('actor','Person who acted / accepted','','text','required maxlength="100"')}${field('day','Event day after visit',Math.max(0,M.get(id).day,t.history.at(-1).day),'number','required min="0" max="365"')}<label class="field">Contact method (for contact attempts)<select name="method"><option value="">Not a contact attempt</option><option>Phone</option><option>Patient app</option><option>Team message</option><option>In person</option><option>Scheduling update</option></select></label><div class="full">${area('note','Outcome, barrier, or next step','','required maxlength="2000"')}</div></div><button type="submit" class="btn primary">Save demo task event</button></form>`:'<p>Task history retained. Any unresolved clinical concern still needs its own review.</p>'}`);
+  }
+  function decisionSummary() {
+    const decision=s().dispositions[s().active];
+    if (!decision) return '';
+    return `<div class="notice clinical-decision"><span class="eyebrow">${decision.phase==='followup'?'Follow-up decision':'Visit decision · before returned results'} · ${esc(c().title)}</span><p><b>${esc(decision.decision)}</b></p><p>${esc(decision.note)}</p><small>${esc(decision.owner)} · ${esc(decision.next)}</small></div>`;
+  }
+  function planPanel(full=false) {
+    const st=s(), name=p().name.split(' ')[0], agreed=activePlanActions().filter(a=>a.status==='agreed'), proposed=st.snapshot?[]:st.actions.filter(a=>a.status==='proposed'&&a.id!=='maya-review');
+    const setAside=st.actions.filter(a=>st.snapshot?!st.snapshot.actions.some(x=>x.id===a.id):['deferred','declined','completed'].includes(a.status));
+    const selected=proposed.find(a=>a.id===st.focusAction)||proposed.find(a=>a.evidence===selectedJourney()?.id)||proposed.find(a=>a.concerns.includes(st.active))||proposed[0];
+    if(!full) return `<span class="eyebrow">Plan together</span><h2>What happens next?</h2><p>${esc(st.aim)}</p><div class="plan-counts"><span>${proposed.length} for discussion</span><span>${agreed.length} agreed</span></div><p class="meta">Review one option at a time. Agreed actions are collected in the planning workspace below.</p>${btn('Open active planning','planning-open','primary')}${btn('Add assessment','add-assessment','quiet small')}`;
+    const urgent=p().id==='maya'&&!st.urgentReview;
+    return `<div class="planning-heading"><div><span class="eyebrow">Discuss → agree → review</span><h2>What are we agreeing to do next?</h2><p>${esc(name)}’s priority: ${esc(st.aim)}</p></div><span class="tag">${st.snapshot?'Signed version '+st.version:'Draft · not sent'}</span></div>${selectedJourney()?`<div class="planning-anchor">Event being reviewed: <strong>${esc(selectedJourney().title)}</strong><small>Each proposal retains its own concern and supporting evidence.</small></div>`:''}${urgent?`<div class="notice urgent">Current clinical review comes first. ${btn('Review current report','urgent','danger small')}</div>`:''}${decisionSummary()}<span class="eyebrow">Patient actions</span><div class="planning-columns"><section class="discussion-column"><h3>For discussion <span>${proposed.length}</span></h3>${!st.snapshot?`<div class="next-step-choices">${btn('Adapt a routine','add-action','small')}${btn('Add an assessment','add-assessment','small')}${btn('Support or follow-up','planning-support','small')}</div>${btn('Continue the current plan','disposition','quiet small')}`:btn('Start a revision','revise','small')}${proposed.length?`<div class="proposal-selector" aria-label="Choose an option to discuss">${proposed.map(a=>`<button data-plan-item="${a.id}" aria-pressed="${a.id===selected.id}">${esc(a.title)}</button>`).join('')}</div>${actionCard(selected)}`:'<p class="planning-empty">No proposals waiting for discussion.</p>'}${setAside.length?`<details class="set-aside-list"><summary>Set aside / previously reviewed (${setAside.length})</summary>${setAside.map(actionCard).join('')}</details>`:''}</section><section class="agreed-column"><h3>Agreed with ${esc(name)} <span>${agreed.length}</span></h3><p class="meta">Only these actions go into the patient’s plan.</p>${agreed.map(actionCard).join('')||'<div class="planning-empty">Agree an option after confirming it fits the patient’s life. It will appear here with its owner and review date.</div>'}</section></div><div class="planning-finish"><div><strong>${st.response?'Response ready for clinical review':st.receipt?'Received in the demonstration app':st.snapshot?'Signed · awaiting app receipt':!agreed.length&&st.dispositions[st.active]?'Clinical decision recorded · no new app actions':agreed.length+' agreed action'+(agreed.length===1?'':'s')}</strong><small>${st.snapshot?'Delivery and responses are simulated.':!agreed.length?'A clinical decision can be recorded without sending new app instructions.':'Review the wording with the patient before signing.'}</small></div><div class="row wrap">${btn('Preview patient plan','app-preview','small')}${!st.snapshot&&!agreed.length?btn(st.dispositions[st.active]?'Review clinical decision':'Record clinical decision','disposition','primary'):btn(st.response?'Review response':st.receipt?'Show scripted response':st.snapshot?'Simulate app receipt':'Review agreed plan',st.response?'world-next':st.receipt?'respond':st.snapshot?'receive':'handoff','primary')}</div></div>${teamTaskSection()}${st.history?.length?`<details class="plan-history"><summary>Previous signed versions (${st.history.length})</summary>${st.history.map(h=>`<button class="btn small" data-history-version="${h.snapshot.version}">Review version ${h.snapshot.version}</button>`).join('')}</details>`:''}`;
   }
   function followupPanel() {
     const st = s(),
@@ -4745,7 +4828,7 @@ window.CITY_ART =
       )
       .join(
         "",
-      )}${summary.custom.length ? '<div class="notice" style="margin-top:14px">Custom or edited instructions: a matching patient narrative has not been supplied. Review each requested result separately.</div>' : ""}<div class="interpretation">${esc(summary.interpretation)}</div>${st.dispositions[st.active] ? `<div class="notice"><b>${esc(st.dispositions[st.active].decision)}</b><p>${esc(st.dispositions[st.active].note)}</p><small>${esc(st.dispositions[st.active].owner)} · ${esc(st.dispositions[st.active].next)}</small></div>` : ""}<div class="followup-item"><span class="eyebrow">Review each agreed concern</span><div class="row wrap" style="margin-top:10px">${[...new Set(st.snapshot.actions.flatMap((a) => a.concerns))].map((cid) => `<button class="tag ${st.dispositions[cid]?.phase === "followup" ? "routine" : "due"}" data-review-concern="${cid}">${st.dispositions[cid]?.phase === "followup" ? "✓ " : ""}${esc(M.current(p().id, cid).title)} · ${st.dispositions[cid]?.phase === "followup" ? "reviewed" : "to review"}</button>`).join("")}</div></div><div class="drawer-bottom">${btn("Document clinical review", "disposition", "primary")}${btn("Adjust the plan", "revise")}${btn("Patient app", "app-preview", "quiet small")}</div>`;
+      )}${summary.custom.length ? '<div class="notice" style="margin-top:14px">Custom or edited instructions: a matching patient narrative has not been supplied. Review each requested result separately.</div>' : ""}<div class="interpretation">${esc(summary.interpretation)}</div>${decisionSummary()}<div class="followup-item"><span class="eyebrow">Review each agreed concern</span><div class="row wrap" style="margin-top:10px">${[...new Set(st.snapshot.actions.flatMap((a) => a.concerns))].map((cid) => `<button class="tag ${st.dispositions[cid]?.phase === "followup" ? "routine" : "due"}" data-review-concern="${cid}">${st.dispositions[cid]?.phase === "followup" ? "✓ " : ""}${esc(M.current(p().id, cid).title)} · ${st.dispositions[cid]?.phase === "followup" ? "reviewed" : "to review"}</button>`).join("")}</div></div><div class="drawer-bottom">${btn("Document clinical review", "disposition", "primary")}${btn("Adjust the plan", "revise")}${btn("Patient app", "app-preview", "quiet small")}</div>`;
   }
   function drawer() {
     const st = s();
@@ -4901,7 +4984,7 @@ window.CITY_ART =
     if (kind === "disposition")
       modal(
         c().title + " · Clinical decision",
-        `<form id="dispositionForm"><div class="notice" style="margin-bottom:15px">${esc(c().question)}</div><div class="form-grid"><label class="field">Decision<select name="decision"><option>Continue current plan</option><option>Adjust the plan</option><option>Further assessment needed</option><option>Concern reviewed; close this task</option><option>Patient prefers to defer</option></select></label>${field("owner", "Owner", st.owner.split(" · ")[0], "text", 'required maxlength="100"')}<div class="full">${area("note", "Clinical reasoning and patient preference", st.dispositions[st.active]?.note || "", 'required maxlength="2000"')}</div><div class="full">${field("next", "Next review or agreed closure", st.dispositions[st.active]?.next || "", "text", 'required maxlength="200"')}</div></div><button type="submit" class="btn primary" style="margin-top:18px">Save clinical decision</button></form>`,
+        `<form id="dispositionForm"><div class="notice" style="margin-bottom:15px">${esc(c().question)}</div><div class="form-grid"><label class="field">Decision<select name="decision">${['Continue current plan','Adjust the plan','Further assessment needed','Concern reviewed; close this task','Patient prefers to defer'].map(value=>`<option ${st.dispositions[st.active]?.decision===value?'selected':''}>${value}</option>`).join('')}</select></label>${field("owner", "Owner", st.owner.split(" · ")[0], "text", 'required maxlength="100"')}<div class="full">${area("note", "Clinical reasoning and patient preference", st.dispositions[st.active]?.note || "", 'required maxlength="2000"')}</div><div class="full">${field("next", "Next review or agreed closure", st.dispositions[st.active]?.next || "", "text", 'required maxlength="200"')}</div></div><button type="submit" class="btn primary" style="margin-top:18px">Save clinical decision</button></form>`,
       );
   }
   function actionForm(type = "Activity", aid = null, eid = null) {
@@ -4950,7 +5033,7 @@ window.CITY_ART =
         : assessment
           ? "Add a clinical assessment"
           : "Add an activity or goal",
-      `<form id="actionForm">${assessment ? `<div class="catalogue"><div class="catalogue-search"><input type="search" id="catalogueSearch" aria-label="Find a clinical assessment" placeholder="Find an assessment…"><select id="catalogueGroup" aria-label="Assessment category"><option>All categories</option>${[...new Set(D.catalogue.map((a) => a.group))].map((x) => `<option>${esc(x)}</option>`).join("")}</select></div><div id="catalogueResults" class="catalogue-list" aria-label="Assessment library"></div></div>` : ""}<div class="form-grid"><div class="full">${field("title", assessment ? "Assessment name" : "Activity or goal", formDraft.title, "text", 'required maxlength="140"')}</div>${assessment ? `${field("version", "Version / language", formDraft.version || "", "text", 'required maxlength="160"')}<label class="field">Completed by<select name="respondent">${["Patient", "Care partner", "Clinician"].map((x) => `<option ${formDraft.respondent === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>` : `<label class="field">Type<select name="type">${["Activity", "Shared goal", "Routine adjustment", "Preference", "Clinical review"].map((x) => `<option ${formDraft.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${field("minutes", "Minutes per activity (optional)", formDraft.minutes || 0, "number", 'min="0" max="240"')}`}<div class="full">${area("patientText", assessment ? "Patient instructions and reason" : "Patient-facing instructions", formDraft.patientText, 'required maxlength="1200"')}</div><fieldset class="full"><legend>Clinical concerns addressed</legend><div class="check-options">${p()
+      `<form id="actionForm"><div class="decision-form-intro"><strong>Make this step workable</strong><p>${esc(s().aim)}</p><small>${e?'Linked to: '+esc(e.title):'Concern: '+esc(c().title)} · location already selected</small></div>${assessment ? `<div class="catalogue"><div class="catalogue-search"><input type="search" id="catalogueSearch" aria-label="Find a clinical assessment" placeholder="Find an assessment…"><select id="catalogueGroup" aria-label="Assessment category"><option>All categories</option>${[...new Set(D.catalogue.map((a) => a.group))].map((x) => `<option>${esc(x)}</option>`).join("")}</select></div><div id="catalogueResults" class="catalogue-list" aria-label="Assessment library"></div></div>` : ""}<div class="form-grid"><div class="full">${field("title", assessment ? "Assessment name" : "Activity or goal", formDraft.title, "text", 'required maxlength="140"')}</div>${assessment ? `${field("version", "Version / language", formDraft.version || "", "text", 'required maxlength="160"')}<label class="field">Completed by<select name="respondent">${["Patient", "Care partner", "Clinician"].map((x) => `<option ${formDraft.respondent === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>` : `<label class="field">Type<select name="type">${["Activity", "Shared goal", "Routine adjustment", "Preference", "Clinical review"].map((x) => `<option ${formDraft.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${field("minutes", "Minutes per activity (optional)", formDraft.minutes || 0, "number", 'min="0" max="240"')}`}<div class="full">${area("patientText", assessment ? "Patient instructions and reason" : "Patient-facing instructions", formDraft.patientText, 'required maxlength="1200"')}</div><fieldset class="full"><legend>Clinical concerns addressed</legend><div class="check-options">${p()
         .concerns.map(
           (x) =>
             `<label><input type="checkbox" name="concerns" value="${x.id}" ${formDraft.concerns.includes(x.id) ? "checked" : ""}>${esc(x.title)}</label>`,
@@ -5049,6 +5132,10 @@ window.CITY_ART =
   function runAction(action, t) {
     try {
       switch (action) {
+        case "planning-open":
+          $("activePlanning").scrollIntoView({behavior:"smooth",block:"start"}); break;
+        case "planning-support":
+          teamTaskForm('Callback'); break;
         case "scene-clarify":
           s().day=0; M.persist(); render(); simpleForm("clarify"); break;
         case "scene-support":
@@ -5081,6 +5168,9 @@ window.CITY_ART =
           s().tab = "followup";
           M.persist();
           render();
+          document.getElementById("contextDrawer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          document.getElementById("contextDrawer")?.setAttribute("tabindex", "-1");
+          document.getElementById("contextDrawer")?.focus({ preventScroll: true });
           break;
         case "guide":
           guide();
@@ -5180,7 +5270,16 @@ window.CITY_ART =
     }
   }
   function bindExtra() {
-    document.addEventListener("click", (e) => {
+    document.addEventListener('submit',event=>{
+    const form=event.target; if(!['teamTaskForm','teamTaskUpdate'].includes(form.id))return;
+    event.preventDefault();
+    try {
+      const input=Object.fromEntries(new FormData(form));
+      if(form.id==='teamTaskForm') { M.createTeamTask(p().id,input); M.persist(); render(); closeModal(); document.getElementById('activePlanning')?.scrollIntoView({block:'end'}); }
+      else { const id=form.dataset.patient, tid=form.dataset.task; M.updateTeamTask(id,tid,input); render(); teamTaskDetail(id,tid); }
+    } catch(err) { error(err); }
+  });
+  document.addEventListener("click", (e) => {
       const t = e.target.closest("button,[data-metric],[data-person]");
       if (!t) return;
       try {
@@ -5215,6 +5314,12 @@ window.CITY_ART =
               ? "Added to the agreed plan."
               : "Choice recorded in the plan.",
           );
+        }
+        if (t.dataset.setAside) {
+          modal("Set this option aside", '<p>Record whether the patient wants to revisit this later or has declined it.</p>', `<button class="btn" data-aside-choice="deferred" data-item="${t.dataset.setAside}">Defer for later</button><button class="btn" data-aside-choice="declined" data-item="${t.dataset.setAside}">Patient declines</button>`);
+        }
+        if (t.dataset.asideChoice) {
+          M.setActionStatus(p().id,t.dataset.item,t.dataset.asideChoice); closeModal(); render();
         }
         if (t.dataset.editItem) actionForm("Activity", t.dataset.editItem);
         if (t.dataset.removeItem) {
@@ -5473,6 +5578,9 @@ window.CITY_ART =
               reviewer +
               " · " +
               next;
+            let task=M.teamTasks(p().id).find(t=>t.kind==='Escalation'&&!['reviewed','cancelled'].includes(t.status));
+            if(!task) task=M.createTeamTask(p().id,{kind:'Escalation',title:'Review new disorientation',reason:summary,owner:reviewer,recipient:'Receiving clinical team',concern:'acute',evidence:'acute-report',priority:'Urgent',day:Math.max(0,s().day),dueDay:Math.max(0,s().day)});
+            if(['requested','accepted','blocked'].includes(task.status)) M.updateTeamTask(p().id,task.id,{status:'contact',actor:reviewer,day:Math.max(0,s().day),method:'Method not recorded',note:summary+' · Next: '+next});
             notify("Contact documented. Urgent review remains open.");
           } else {
             s().urgentReview = { summary, reviewer, next, disposition };
@@ -5620,17 +5728,7 @@ window.CITY_ART =
   }
 
   function tray() {
-    const st = s(),
-      agreed = st.actions.filter((a) => a.status === "agreed");
-    return `<aside class="plan-tray" aria-label="Persistent shared plan"><div class="summary"><h2>${icon("check")} Shared plan</h2><p>${agreed.length} agreed · ${st.actions.filter((a) => a.status === "proposed").length} proposed · ${st.snapshot ? "Version " + st.version : "Draft saved in this tab"}</p></div><div class="mini-actions">${activePlanActions()
-      .slice(0, 2)
-      .map(
-        (a) =>
-          `<button data-plan-item="${a.id}" class="${a.status}">${esc(a.title)}</button>`,
-      )
-      .join(
-        "",
-      )}</div>${btn("Review plan", "plan", "")}${btn(st.snapshot ? "Patient app" : "Review & send", "handoff", "primary")}</aside>`;
+    return `<section id="activePlanning" class="active-planning" aria-label="Active planning">${planPanel(true)}</section>`;
   }
   function patientPage() {
     const st = s();
@@ -5685,6 +5783,9 @@ window.CITY_ART =
     }
     const t = e.target.closest("button,[data-place]");
     if (!t) return;
+    if(t.dataset.newTeam) { teamTaskForm(t.dataset.newTeam); return; }
+    if(t.dataset.teamTask) { teamTaskDetail(t.dataset.teamPatient,t.dataset.teamTask); return; }
+    if(t.dataset.teamSource) { const id=t.dataset.teamPatient; closeModal(); navigate(id,t.dataset.teamConcern); const source=p().evidence.find(e=>e.id===t.dataset.teamSource); s().journeyEvidence=source.id; s().day=source.day; s().place=source.places[0]||s().place; s().tab='evidence'; M.persist(); render(); document.getElementById('contextDrawer')?.scrollIntoView({block:'start'}); return; }
     if (t.dataset.filter) {
       filter = t.dataset.filter;
       render();
@@ -5714,7 +5815,7 @@ window.CITY_ART =
       const nextConcern = state.response
         ? state.snapshot.actions
             .flatMap((a) => a.concerns)
-            .find((cid) => state.dispositions[cid]?.phase !== "followup") ||
+            .find((cid) => ["Further assessment needed","Adjust the plan"].includes(state.dispositions[cid]?.decision) || state.dispositions[cid]?.phase !== "followup") ||
           state.active
         : id === "elena"
           ? "function"
@@ -5793,10 +5894,11 @@ window.CITY_ART =
   const openScene=sceneLink && sceneLink[0]===sceneParam;
   if(openScene) {
     M.chooseConcern(route.patient,sceneLink[2]); const e=p().evidence.find(e=>e.id===sceneLink[1]);
-    s().journeyEvidence=e.id; s().day=e.day; s().place=e.places[0]; s().tab='evidence'; M.persist();
+    s().focusAction=null; s().journeyEvidence=e.id; s().day=e.day; s().place=e.places[0]; s().tab='evidence'; M.persist();
   }
   render();
-  if(openScene) requestAnimationFrame(()=>$("worldSurface")?.scrollIntoView({block:'start'}));
+  if(new URLSearchParams(location.search).get('panel')==='planning') requestAnimationFrame(()=>$('activePlanning')?.scrollIntoView({block:'start'}));
+  else if(openScene) requestAnimationFrame(()=>$("worldSurface")?.scrollIntoView({block:'start'}));
   window.HealthopiaWorkspace = {
     render,
     navigate,
